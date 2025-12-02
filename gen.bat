@@ -92,7 +92,7 @@ exit /b 1
 :check_interface
 set /p INTERFACE_CONFIG=Do you want to configure interface? (y/n): 
 if /i "%INTERFACE_CONFIG%"=="y" goto configure_interface
-if /i "%INTERFACE_CONFIG%"=="n" goto success
+if /i "%INTERFACE_CONFIG%"=="n" goto check_subinterface
 echo Invalid option. Please enter y or n.
 pause
 exit /b 1
@@ -199,7 +199,59 @@ goto finish_interface
 
 set /p MORE_INTERFACES=Do you want to configure another interface? (y/n): 
 if /i "%MORE_INTERFACES%"=="y" goto configure_interface
-if /i "%MORE_INTERFACES%"=="n" goto success
+if /i "%MORE_INTERFACES%"=="n" goto check_subinterface
+echo Invalid option. Please enter y or n.
+pause
+exit /b 1
+
+:check_subinterface
+set /p SUBINTERFACE_CONFIG=Do you want to configure subinterfaces? (y/n): 
+if /i "%SUBINTERFACE_CONFIG%"=="y" goto configure_subinterface
+if /i "%SUBINTERFACE_CONFIG%"=="n" goto success
+echo Invalid option. Please enter y or n.
+pause
+exit /b 1
+
+:configure_subinterface
+set /p PARENT_INTERFACE=On which interface do you want to create subinterface (e.g., g0/0): 
+if "%PARENT_INTERFACE%"=="" goto error_parent_interface
+
+rem Configure parent interface
+(
+    echo interface %PARENT_INTERFACE%
+    echo no shut
+    echo exit
+) >> "%~dp0commands.txt"
+
+:configure_subinterface_loop
+set /p SUBINTERFACE_NUMBER=Subinterface number: 
+if "%SUBINTERFACE_NUMBER%"=="" goto error_subinterface_number
+
+set /p SUBINTERFACE_IP=IP address for subinterface: 
+if "%SUBINTERFACE_IP%"=="" goto error_subinterface_ip
+
+set /p SUBINTERFACE_MASK=Subnet mask for subinterface: 
+if "%SUBINTERFACE_MASK%"=="" goto error_subinterface_mask
+
+rem Add subinterface commands to file
+(
+    echo interface %PARENT_INTERFACE%.%SUBINTERFACE_NUMBER%
+    echo encapsulation dot1q %SUBINTERFACE_NUMBER%
+    echo ip address %SUBINTERFACE_IP% %SUBINTERFACE_MASK%
+    echo exit
+) >> "%~dp0commands.txt"
+
+set /p MORE_SUBINTERFACES=Do you want to configure another subinterface on this interface? (y/n): 
+if /i "%MORE_SUBINTERFACES%"=="y" goto configure_subinterface_loop
+if /i "%MORE_SUBINTERFACES%"=="n" goto ask_another_parent
+echo Invalid option. Please enter y or n.
+pause
+exit /b 1
+
+:ask_another_parent
+set /p ANOTHER_PARENT=Do you want to configure subinterfaces on another interface? (y/n): 
+if /i "%ANOTHER_PARENT%"=="y" goto configure_subinterface
+if /i "%ANOTHER_PARENT%"=="n" goto success
 echo Invalid option. Please enter y or n.
 pause
 exit /b 1
@@ -217,7 +269,7 @@ rem Generate basic commands without SSH
         echo exit
     )
 ) > "%~dp0commands.txt"
-goto check_vlan
+goto check_subinterface
 
 :error_hostname
 echo No hostname was specified.
@@ -291,6 +343,26 @@ exit /b 1
 
 :error_subnet_mask
 echo No subnet mask was specified.
+pause
+exit /b 1
+
+:error_parent_interface
+echo No parent interface was specified.
+pause
+exit /b 1
+
+:error_subinterface_number
+echo No subinterface number was specified.
+pause
+exit /b 1
+
+:error_subinterface_ip
+echo No IP address was specified for subinterface.
+pause
+exit /b 1
+
+:error_subinterface_mask
+echo No subnet mask was specified for subinterface.
 pause
 exit /b 1
 
